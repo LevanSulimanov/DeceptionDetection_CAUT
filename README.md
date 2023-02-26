@@ -3,9 +3,8 @@
 <!-- GETTING STARTED -->
 ## About the Project
 
-Lie Detector using Multi-Modal Features (face &amp; body keypoints, and Audio)
-
-Project is focused at providing non-contact lie classification framework.
+- Lie Detector using Multi-Modal Features (face &amp; body keypoints, and Audio).
+		- Project is focused at providing non-contact lie classification framework.
 
 ### Project Workflow
 

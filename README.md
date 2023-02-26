@@ -21,5 +21,5 @@ Project is focused at providing non-contact lie classification framework.
 2. Project Diagram:
 
    ---
-   ![alt text](/readme_imgs/caut_diagram.jpg)
+   ![alt text](/img_assets/caut_diagram.jpg)
    ---

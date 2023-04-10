@@ -1,2 +1,12 @@
-# ignore ALL files in 
+# ignore ALL data files in data/
 data/*
+
+# ignore .mp4 and .gif files:
+*.gif
+*.mp4
+
+# ignore notebooks cache:
+*.ipynb_checkpoints
+
+# bak cache:
+*.bak

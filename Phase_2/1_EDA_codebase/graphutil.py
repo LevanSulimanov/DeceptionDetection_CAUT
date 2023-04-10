@@ -47,7 +47,7 @@ class PlotGraphs:
     @staticmethod
     def AddLabels(angles, values, labels, offset, ax):
         for ang,val,label, in zip(angles, values, labels):
-            rot, align = GetLabelRot(ang, offset)
+            rot, align = PlotGraphs.GetLabelRot(ang, offset)
             ax.text(x=ang,y=val+4,s=label,ha=align,va="center",rotation=rot,rotation_mode="anchor")
 
     @staticmethod
@@ -70,7 +70,7 @@ class PlotGraphs:
         vals = (vals/vals.max()) * 80
         labels = inDf[inDf.columns[inLabelI]]
         cWidth = 2 * np.pi / len(vals)
-        colors = get_color("blend:#AFE1AF,#1c4a60", len(inDf))
+        colors = PlotGraphs.get_color("blend:#AFE1AF,#1c4a60", len(inDf))
         colors.reverse()
         fig, ax = plt.subplots(figsize=(20,10),subplot_kw={"projection":"polar"})
         ax.set_theta_offset(np.pi/2)
@@ -80,7 +80,7 @@ class PlotGraphs:
         ax.set_yticks([])
         angs = np.linspace(0, 2 * np.pi, len(inDf), endpoint=False)
         ax.bar(angs,vals,width=cWidth,linewidth=2,color=colors,edgecolor="white")
-        AddLabels(angs, vals, labels, np.pi/2, ax)
+        PlotGraphs.AddLabels(angs, vals, labels, np.pi/2, ax)
     
     #slider bar plot
     @staticmethod
@@ -105,7 +105,7 @@ class PlotGraphs:
         df = inDF.sort_values(by=inDF.columns[inValueI],ascending=False)
         vals = df[df.columns[inValueI]]
         labels = df[df.columns[inLabelI]]
-        colors = get_color("blend:#AFE1AF,#1c4a60", len(df))
+        colors = PlotGraphs.get_color("blend:#AFE1AF,#1c4a60", len(df))
         colors.reverse()
         fig = go.Figure(data=[go.Pie(labels=labels, values=vals, 
                                 title = title, marker_colors=colors
@@ -121,7 +121,7 @@ class PlotGraphs:
         pull = [0.2]
         for i in range(len(df)-1):
             pull.append(0)
-        colors = get_color("blend:#AFE1AF,#1c4a60", len(df))
+        colors = PlotGraphs.get_color("blend:#AFE1AF,#1c4a60", len(df))
         colors.reverse()
         fig = go.Figure(data=[go.Pie(labels=labels, values=vals, pull=pull, 
                                 title = title, marker_colors=colors
@@ -134,7 +134,7 @@ class PlotGraphs:
         df = inDF.sort_values(by=inDF.columns[inValueI],ascending=False)
         vals = df[df.columns[inValueI]]
         labels = df[df.columns[inLabelI]]
-        colors = get_color("blend:#AFE1AF,#1c4a60", len(df))
+        colors = PlotGraphs.get_color("blend:#AFE1AF,#1c4a60", len(df))
         colors.reverse()
         
         fig = go.Figure(data=[go.Pie(labels=labels, values=vals, hole=.3,title = title,
@@ -153,7 +153,7 @@ class PlotGraphs:
         sns.set_style('darkgrid')
         label = df[df.columns[inLabelI]].to_numpy()
 
-        colors = get_color("blend:#AFE1AF,#1c4a60", len(df))
+        colors = PlotGraphs.get_color("blend:#AFE1AF,#1c4a60", len(df))
         colors.reverse()
 
         #set max value

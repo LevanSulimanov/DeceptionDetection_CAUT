@@ -12,7 +12,7 @@
 1. Data Collection:
 
    ---
-   ![alt text](/img_assets/data_sample.jpg)
+   ![alt text](/readme_img_assets/data_sample.jpg)
    ---
    
 ---
@@ -20,5 +20,5 @@
 2. Project Diagram:
 
    ---
-   ![alt text](/img_assets/caut_diagram.jpg)
+   ![alt text](/readme_img_assets/caut_diagram.jpg)
    ---

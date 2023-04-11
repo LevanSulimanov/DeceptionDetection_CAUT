@@ -2,7 +2,9 @@ import os
 import pandas as pd
 import numpy as np
 import math
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 import traceback
 
 AVG_OPENFACE_FEATURE_COLUMNS_SELECTION = ["mean_AU01","mean_AU02","mean_AU04","mean_AU05","mean_AU06","mean_AU07","mean_AU09","mean_AU10","mean_AU11","mean_AU12","mean_AU14","mean_AU15","mean_AU17","mean_AU20","mean_AU23","mean_AU24","mean_AU25","mean_AU26","mean_AU28","mean_AU43","mean_anger","mean_disgust","mean_fear","mean_happiness","mean_sadness","mean_surprise","mean_neutral"]
@@ -113,8 +115,8 @@ class CautDataloaderRegular:
                 path = os.path.join(data_dir, f"{filename.replace('.mp4', '')}.csv")
                 # if we have such path, then we read it, get features of interest,
                 # and reshape into (frame, features*xyz)
-                print("path:", path)
-                print("os.path.exists(path):", os.path.exists(path))
+                # print("path:", path)
+                # print("os.path.exists(path):", os.path.exists(path))
                 if(os.path.exists(path)):
                     arr = pd.read_csv(path)
                     current_data = arr[SEQUENTIAL_OPENFACE_FEATURE_COLUMNS_SELECTION].values
@@ -276,3 +278,69 @@ class CautDataloaderRegular:
         # if we reached here, it's odd:
         print(">>> Unknown behavior...")
         return None, None, None, None
+
+
+    @staticmethod
+    def get_positive_negative_rates(confusion_matrix):
+        #calculate false positive, false negative, true positive and true nagative
+        TN = confusion_matrix[0, 0]
+        FP = confusion_matrix[0, 1]
+        FN = confusion_matrix[1, 0]
+        TP = confusion_matrix[1, 1]
+
+        # Sensitivity, hit rate, recall, or true positive rate
+        TPR = TP/(TP+FN)
+        # Specificity or true negative rate
+        TNR = TN/(TN+FP) 
+        # Precision or positive predictive value
+        PPV = TP/(TP+FP)
+        # Negative predictive value
+        NPV = TN/(TN+FN)
+        # Fall out or false positive rate
+        FPR = FP/(FP+TN)
+        # False negative rate
+        FNR = FN/(TP+FN)
+        # False discovery rate
+        FDR = FP/(TP+FP)
+
+        print("\nMetrics Rates:")
+        print("     - True Positive            :", TP)
+        print("     - False Positive           :", FP)
+        print("     - True Negative            :", TN)
+        print("     - False Negative           :", FN)
+        print("     - True Positive Rate       : ",TPR)
+        print("     - True Negative Rate       : ",TNR)
+        print("     - Positive Predictive Value: ",PPV)
+        print("     - Negative predictive value: ",NPV)
+        print("     - False Positive Rate      : ",FPR)
+        print("     - False Negative Rate      : ",FNR)
+        print("     - False Discovery Rate     : ",FDR)
+
+
+    @staticmethod
+    def plot_confusion_matrix(y_test, y_pred):
+
+        # get confusion matrix:
+        conf_matrix = confusion_matrix(y_test, y_pred)
+
+        cmap = mcolors.LinearSegmentedColormap.from_list('custom', ['#AFE1AF', '#1c4a60'])
+        classes = np.array([False,True])
+        fig, ax = plt.subplots()
+        im = ax.imshow(conf_matrix, interpolation='nearest', cmap=cmap)
+        ax.figure.colorbar(im, ax=ax)
+        ax.set(xticks=np.arange(conf_matrix.shape[1]),
+               yticks=np.arange(conf_matrix.shape[0]),
+               xticklabels=classes, yticklabels=classes,
+               ylabel='True label',
+               xlabel='Predicted label')
+        thresh = (conf_matrix.max() + conf_matrix.min()) / 2.0
+        for i in range(conf_matrix.shape[0]):
+            for j in range(conf_matrix.shape[1]):
+                ax.text(j, i, format(conf_matrix[i, j], 'd'),
+                        ha="center", va="center",
+                        color="white" if conf_matrix[i, j] > thresh else "black")
+        fig.tight_layout()
+        plt.show()
+
+        print("---------------------------------------------------------------")
+        CautDataloaderRegular.get_positive_negative_rates(conf_matrix)

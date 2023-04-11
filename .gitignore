@@ -6,7 +6,7 @@ data/*
 *.mp4
 
 # ignore notebooks cache:
-*.ipynb_checkpoints
+.ipynb_checkpoints
 
 # bak cache:
 *.bak

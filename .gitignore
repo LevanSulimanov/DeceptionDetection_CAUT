@@ -1,9 +1,11 @@
 # ignore ALL data files in data/
 data/*
 
-# ignore .mp4 and .gif files:
+# ignore .mp4, .wav, .mp3, and .gif files:
 *.gif
 *.mp4
+*.mp3
+*.wav
 
 # ignore notebooks cache:
 .ipynb_checkpoints

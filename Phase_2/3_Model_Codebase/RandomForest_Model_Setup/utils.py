@@ -198,18 +198,66 @@ class CautDataloaderRegular:
         y_data = np.array(y_data)
 
         return X_data, y_data
-
-
+    
+    
+    
+    # retrieve X_data and y_data from MediaPipe.
     @staticmethod
-    def get_X_y_TrainTest(csv_path,
-                          data_dir,
-                          data_mode,
-                          # coord_selection,
-                          approach_type=None,  # average or frame-based
-                          required_FPS = 30,
-                          input_length_in_seconds = 3,
-                          class_to_num_dict = {"truth": 0, "lie": 1},
-                          verbose = True):
+    def get_Xy_data_audioFeatures(data_dir,
+                                  meta_df,
+                                  input_length_in_seconds,
+                                  feature_type,
+                                  class_to_num_dict,
+                                  # coord_selection,
+                                  verbose):
+        X_data = []
+        y_data = []
+        # frame amount * input seconds, e.g. 29*3=>87 => expected input length
+        counter, total = 0, len(meta_df)
+
+        for filename in meta_df["video_name"]:
+            # setup label name and num:
+            current_label_name = filename.split("_")[1]
+            current_label_num  = class_to_num_dict[current_label_name]
+            # get path to data:
+            path = os.path.join(data_dir, f"{filename.replace('.mp4', '')}_{feature_type}.npy")
+            # if we have such path, then we read it, get features of interest,
+            # and reshape into (frame, features*xyz)
+            if(os.path.exists(path)):
+                arr = np.load(path)
+                trun_arr = arr[:input_length_in_seconds*1000]  # audio is trimmed in milliseconds
+                current_data = np.transpose(trun_arr, (1,0))
+
+                # record data:
+                X_data.append(current_data)
+                y_data.append(current_label_num)
+                # keep track of how much we have processed...
+                counter+=1
+                if verbose:
+                    if (counter%100==0):
+                        print(f"Processed {counter} / {total}")
+                        print("  - Audio sample shape & label:")
+                        print(f"    - X_data: {current_data.shape}")
+                        print(f"    - y_data: {current_label_num}")
+
+        X_data = np.array(X_data)
+        y_data = np.array(y_data)
+
+        return X_data, y_data
+    
+    
+    
+    # retrieve visual dataset (OpenFace or MediaPipe):
+    @staticmethod
+    def get_X_y_TrainTest_Visual(csv_path,
+                                 data_dir,
+                                 data_mode,
+                                 # coord_selection,
+                                 approach_type=None,  # average or frame-based
+                                 required_FPS = 30,
+                                 input_length_in_seconds = 3,
+                                 class_to_num_dict = {"truth": 0, "lie": 1},
+                                 verbose = True):
 
         # meta data:
         train_df_meta, test_df_meta = CautDataloaderRegular.get_TrainTest_meta_csv(csv_path)
@@ -278,6 +326,61 @@ class CautDataloaderRegular:
         # if we reached here, it's odd:
         print(">>> Unknown behavior...")
         return None, None, None, None
+    
+    
+    
+    # retrieve audio dataset:
+    @staticmethod
+    def get_X_y_TrainTest_Audio(csv_path,
+                                data_dir,
+                                # coord_selection,
+                                feature_type="MFCC",  # MFCC, RMS, Chroma
+                                input_length_in_seconds = 3,
+                                class_to_num_dict = {"truth": 0, "lie": 1},
+                                verbose = True):
+
+        data_dir = os.path.join(data_dir, f"{feature_type}_audio_features")
+        print(f"data_dir updated to: {data_dir}")
+        
+        # meta data:
+        train_df_meta, test_df_meta = CautDataloaderRegular.get_TrainTest_meta_csv(csv_path)
+
+        # get actual data
+        ##################
+        # Audio MODE: #
+        ##################
+        # train:
+        X_train, y_train = CautDataloaderRegular.get_Xy_data_audioFeatures(data_dir=data_dir,
+                                                                           meta_df=train_df_meta,
+                                                                           input_length_in_seconds=input_length_in_seconds,
+                                                                           feature_type=feature_type,
+                                                                           class_to_num_dict=class_to_num_dict,
+                                                                           verbose=verbose)
+        # test:
+        X_test, y_test = CautDataloaderRegular.get_Xy_data_audioFeatures(data_dir=data_dir,
+                                                                         meta_df=test_df_meta,
+                                                                         input_length_in_seconds=input_length_in_seconds,
+                                                                         feature_type=feature_type,
+                                                                         class_to_num_dict=class_to_num_dict,
+                                                                         verbose=verbose)
+        # check on results:
+        if verbose:
+            print("----------------------------")
+            print("Gathered data shapes:")
+            print("X_train.shape:", X_train.shape)
+            print("y_train.shape:", y_train.shape)
+            print("X_test.shape:", X_test.shape)
+            print("y_test.shape:", y_test.shape)
+        return X_train, y_train, X_test, y_test
+
+        ###############################
+        # NO OTHER MODE WAS ADDED YET #
+        ###############################
+        
+        # if we reached here, it's odd:
+        # print(">>> Unknown behavior...")
+        # return None, None, None, None
+    
 
 
     @staticmethod

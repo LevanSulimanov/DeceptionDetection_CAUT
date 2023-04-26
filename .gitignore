@@ -8,8 +8,8 @@ data/*
 *.wav
 
 # ignore notebooks & python cache:
-.ipynb_checkpoints
-__pycache__
+*.ipynb_checkpoints
+*__pycache__
 
 # bak cache:
 *.bak

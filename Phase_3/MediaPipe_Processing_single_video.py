@@ -1,9 +1,29 @@
+#mediapipe processing 1 video
 import os
 import cv2
 import traceback
 import numpy as np
 import mediapipe as mp
+import math
 
+#------------------------------------------------------------------------------------
+
+SEQUENTIAL_MEDIAPIPE_FEATURE_COLUMNS_SELECTION = [468, 473, 282, 52, 4, 0, 16, 40, 90, 270, 320, 199]
+
+
+#------------------------------------------------------------------------------------
+def standardize_FPS(data, frame_cap):
+        # if FPS is lower, duplicate every frame to increase (generate slow video as workaround):        
+        if data.shape[0] < frame_cap:
+            repeat_for = int(math.ceil(frame_cap / data.shape[0]))
+            data = np.repeat(data, repeat_for, axis=0)[:frame_cap]
+            # add additional edge case carry out:
+            if len(data) < frame_cap:
+                extra_needed = frame_cap - len(data)
+                extra_array = np.zeros((extra_needed, data.shape[1]), dtype=float)
+                data = np.concatenate((data, extra_array))
+        return data[:frame_cap]
+  
 
 #------------------------------------------------------------------------------------
 def retrieve_face_coordinates_from_frame(image, face_mesh, verbose=True):
@@ -52,14 +72,19 @@ def retrieve_face_coordinates_from_frame(image, face_mesh, verbose=True):
         # print(traceback.format_exc())
         x, y, z = 0.0, 0.0, 0.0
         current_set_of_coordinates = [np.array([x,y,z])]*478
-        
-    return image, np.array(current_set_of_coordinates)
-
+    
+    # adjust current set of coordinates to required lengths and shape:
+    current_set_of_coordinates = np.array(current_set_of_coordinates)
+    current_set_of_coordinates = current_set_of_coordinates[SEQUENTIAL_MEDIAPIPE_FEATURE_COLUMNS_SELECTION, :]
+    current_set_of_coordinates = current_set_of_coordinates.reshape(-1, current_set_of_coordinates.shape[0] * current_set_of_coordinates.shape[1])
+    current_set_of_coordinates = current_set_of_coordinates.squeeze()
+    
+    return image, current_set_of_coordinates
 
 
 #------------------------------------------------------------------------------------
 # run through single video:
-def process_video(video_path, class_name, webcam=False, verbose=False):
+def process_video_mediapipe(video_path, required_fps, webcam=False, verbose=False):
     
     detected_keypoints_coordinates = []
     
@@ -105,4 +130,9 @@ def process_video(video_path, class_name, webcam=False, verbose=False):
     cap.release()
     cv2.destroyAllWindows()
     
-    return np.array(detected_keypoints_coordinates)
+    # standardize input array
+    detected_keypoints_coordinates = np.array(detected_keypoints_coordinates)
+    detected_keypoints_coordinates = standardize_FPS(detected_keypoints_coordinates, required_fps)
+    detected_keypoints_coordinates = detected_keypoints_coordinates.reshape(-1, detected_keypoints_coordinates.shape[0] * detected_keypoints_coordinates.shape[1])
+    
+    return detected_keypoints_coordinates

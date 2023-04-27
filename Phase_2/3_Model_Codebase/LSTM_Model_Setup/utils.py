@@ -489,7 +489,49 @@ class CautDataloaderRegular:
                     umap_3d = UMAP(n_components=visual_feature_dim, init='random', random_state=0)
                     audio_feature = umap_3d.fit_transform(audio_feature)
                 fused_feature = np.multiply(visual_feature, audio_feature)
-            else:  # fusion_mode = "+"
+            else: fusion_mode = "+" :
+                   def concatenate_audio_openface_csv(audio_dir, openface_dir, output_dir):
+    """
+    Concatenates audio and OpenFace CSV files with matching names in the specified directories
+    and writes the concatenated dataframes to CSV files in the specified output directory.
+    
+    Args:
+    audio_dir (str): Directory containing audio CSV files.
+    openface_dir (str): Directory containing OpenFace CSV files.
+    output_dir (str): Directory to write output CSV files to.
+    """
+    for audio_file in os.listdir(audio_dir):
+        # Check if file is a CSV file
+        if audio_file.endswith('.csv'):
+            # Construct path to audio file
+            audio_path = os.path.join(audio_dir, audio_file)
+            # Construct path to OpenFace file with the same name as the audio file
+            openface_file = os.path.join(openface_dir, audio_file)
+            # Check if the OpenFace file exists
+            if os.path.exists(openface_file):
+                # Read audio and OpenFace CSV files into pandas dataframes
+                audio_df = pd.read_csv(audio_path)
+                openface_df = pd.read_csv(openface_file)
+                # Determine the smaller dataframe
+                if len(audio_df) < len(openface_df):
+                    smaller_df = audio_df
+                    larger_df = openface_df
+                else:
+                    smaller_df = openface_df
+                    larger_df = audio_df
+                # Add columns to smaller dataframe to match larger dataframe
+                missing_cols = set(larger_df.columns) - set(smaller_df.columns)
+                for col in missing_cols:
+                    smaller_df[col] = pd.Series(dtype=str)
+                # Concatenate the two dataframes
+                concatenated_df = pd.concat([smaller_df, larger_df], axis=1)
+                # Create output directory if it doesn't exist
+                os.makedirs(output_dir, exist_ok=True)
+                # Write concatenated dataframe to CSV file
+                output_path = os.path.join(output_dir, audio_file)
+                concatenated_df.to_csv(output_path, index=False)
+            else:
+                print(f"No OpenFace file found for {audio_file}")
                 pass
         else:
             print(f">>> ERROR: No such supported visual_data_mode = {visual_approach_type}")

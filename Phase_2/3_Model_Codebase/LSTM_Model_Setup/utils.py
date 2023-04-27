@@ -73,37 +73,37 @@ class CautDataloaderRegular:
         counter, total = 0, len(meta_df)
         # if we chose average approach, then let's locate Final.csv (each row represents single video):
         if approach_type == "average":
-                # get array with averaged video impressions:
-                avg_df = pd.read_csv(os.path.join(data_dir, "Final.csv"))
-                for filename in meta_df["video_name"]:
-                    try:
-                        current_label_name = filename.split("_")[1]
-                        current_label_num  = class_to_num_dict[current_label_name]
-                        # find the row with that filename:
-                        current_video_name = filename.replace(".mp4", "")
-                        current_row_data = avg_df.loc[avg_df['VideoName'] == current_video_name]
-                        if len(current_row_data) <= 0:
-                            print(f"Video failed to be processed by OpenFace. Videoname={current_video_name}.")
-                            continue
-                        current_data = current_row_data[AVG_OPENFACE_FEATURE_COLUMNS_SELECTION].iloc[0].values
-                        # append to X and y data:
-                        # no need to trim sequences, since we deal with video averaged impressions
-                        X_data.append(current_data)
-                        y_data.append(current_label_num)
-                        # keep track of how many things we gathered:
-                        counter+=1                
-                        if verbose:
-                            if (counter%100==0):
-                                print(f"Processed {counter} / {total}")
-                                print("  - Sample shape & label:")
-                                print(f"    - X_data: {current_data.shape}")
-                                print(f"    - y_data: {current_label_num}")
-                    except:  # if we get error in other loops (Sequential OpenFace or MediaPipe), then add this error exception there too)
-                        print("##########################################################################")
-                        print(">>> ERROR:")
-                        print(f"Failed with retrieving data for videoname={current_video_name}. Please check the error below...")
-                        print(traceback.format_exc())
-                        print("##########################################################################\n")
+            # get array with averaged video impressions:
+            avg_df = pd.read_csv(os.path.join(data_dir, "Final.csv"))
+            for filename in meta_df["video_name"]:
+                try:
+                    current_label_name = filename.split("_")[1]
+                    current_label_num  = class_to_num_dict[current_label_name]
+                    # find the row with that filename:
+                    current_video_name = filename.replace(".mp4", "")
+                    current_row_data = avg_df.loc[avg_df['VideoName'] == current_video_name]
+                    if len(current_row_data) <= 0:
+                        print(f"Video failed to be processed by OpenFace. Videoname={current_video_name}.")
+                        continue
+                    current_data = current_row_data[AVG_OPENFACE_FEATURE_COLUMNS_SELECTION].iloc[0].values
+                    # append to X and y data:
+                    # no need to trim sequences, since we deal with video averaged impressions
+                    X_data.append(current_data)
+                    y_data.append(current_label_num)
+                    # keep track of how many things we gathered:
+                    counter+=1                
+                    if verbose:
+                        if (counter%100==0):
+                            print(f"Processed {counter} / {total}")
+                            print("  - Sample shape & label:")
+                            print(f"    - X_data: {current_data.shape}")
+                            print(f"    - y_data: {current_label_num}")
+                except:  # if we get error in other loops (Sequential OpenFace or MediaPipe), then add this error exception there too)
+                    print("##########################################################################")
+                    print(">>> ERROR:")
+                    print(f"Failed with retrieving data for videoname={current_video_name}. Please check the error below...")
+                    print(traceback.format_exc())
+                    print("##########################################################################\n")
                 
         # if it is sequential, we need to read from list of .csv files, each representing individual video.
         elif approach_type == "sequential":
@@ -380,9 +380,291 @@ class CautDataloaderRegular:
         # if we reached here, it's odd:
         # print(">>> Unknown behavior...")
         # return None, None, None, None
+        
+        
     
+    # retrieve audio dataset:
+    @staticmethod
+    def get_X_y_TrainTest_Fused(csv_path,
+                                visual_data_dir,
+                                visual_data_mode,
+                                audio_data_dir,
+                                # coord_selection,
+                                visual_approach_type=None,  # average or frame-based
+                                required_FPS = 30,
+                                input_length_in_seconds = 3,
+                                audio_feature_type="MFCC",  # MFCC, RMS, Chroma
+                                class_to_num_dict = {"truth": 0, "lie": 1},
+                                verbose = True):
+
+        # visual_data_dir => for visual data path.
+        audio_data_dir = os.path.join(audio_data_dir, f"{feature_type}_audio_features")  # for audio data path.
+        print(f"audio_data_dir updated to: {audio_data_dir}")
+        
+        # meta data:
+        train_df_meta, test_df_meta = CautDataloaderRegular.get_TrainTest_meta_csv(csv_path)
+
+        # get actual data
+        ##################
+        # Audio MODE: #
+        ##################
+        # train:
+        X_train, y_train = CautDataloaderRegular.get_Xy_data_fusedFeatures(data_dir=data_dir,
+                                                                           meta_df=train_df_meta,
+                                                                           input_length_in_seconds=input_length_in_seconds,
+                                                                           feature_type=feature_type,
+                                                                           class_to_num_dict=class_to_num_dict,
+                                                                           verbose=verbose)
+        # test:
+        X_test, y_test = CautDataloaderRegular.get_Xy_data_fusedFeatures(data_dir=data_dir,
+                                                                         meta_df=test_df_meta,
+                                                                         input_length_in_seconds=input_length_in_seconds,
+                                                                         feature_type=feature_type,
+                                                                         class_to_num_dict=class_to_num_dict,
+                                                                         verbose=verbose)
+        # check on results:
+        if verbose:
+            print("----------------------------")
+            print("Gathered data shapes:")
+            print("X_train.shape:", X_train.shape)
+            print("y_train.shape:", y_train.shape)
+            print("X_test.shape:", X_test.shape)
+            print("y_test.shape:", y_test.shape)
+        return X_train, y_train, X_test, y_test
+    
+    #########################################################################################################################
+    ############################################# FUSION FUNCTIONS ##########################################################
+    #########################################################################################################################
+    @staticmethod
+    def get_audio_sample(data_dir, filename, feature_type, seconds_limit):
+        audio_path = os.path.join(data_dir, f"{filename.replace('.mp4', '')}_{feature_type}.npy")
+        if(os.path.exists(audio_path)):
+            arr = np.load(audio_path)
+            trun_arr = arr[:seconds_limit*1000]  # audio is trimmed in milliseconds
+            audio_data = np.transpose(trun_arr, (1,0))
+            return audio_data
+        return None
 
 
+    @staticmethod
+    def get_fused_features(visual_feature, audio_feature, visual_data_mode, fusion_mode):
+        result = None
+        if visual_data_mode == "average":
+            if fusion_mode == "x":
+                pass
+            else:  # fusion_mode = "+"
+                pass
+        elif visual_data_mode == "sequential":  # means that visual_data_mode == "sequential":
+            if fusion_mode == "x":
+                pass
+            else:  # fusion_mode = "+"
+                pass
+        else:
+            print(f">>> ERROR: No such supported visual_data_mode = {visual_data_mode}")
+        return result
+
+
+
+
+    @staticmethod
+    def get_Xy_data_Fused(meta_df,
+                          visual_data_dir,
+                          visual_data_mode,
+                          audio_data_dir,
+                          # coord_selection,
+                          fusion_mode="x",  # or "+"
+                          visual_approach_type=None,  # average or frame-based
+                          required_FPS = 30,
+                          input_length_in_seconds = 3,
+                          audio_feature_type="MFCC",  # MFCC, RMS, Chroma
+                          class_to_num_dict = {"truth": 0, "lie": 1},
+                          verbose = True):
+
+        X_data = []
+        y_data = []
+
+        frame_cap = required_FPS*input_length_in_seconds
+
+        counter, total = 0, len(meta_df)
+
+        visual_data_mode = visual_data_mode.lower()
+
+        if visual_data_mode == "openface":
+            # do OpenFace + Audio fusion here 
+            # if we chose average approach, then let's locate Final.csv (each row represents single video):
+            if visual_approach_type == "average":
+                # get array with averaged video impressions:
+                avg_df = pd.read_csv(os.path.join(visual_data_dir, "Final.csv"))
+                for filename in meta_df["video_name"]:
+                    try:
+                        # get label and associated num:
+                        current_label_name = filename.split("_")[1]
+                        current_label_num  = class_to_num_dict[current_label_name]
+
+                        # find the row with that filename:
+                        current_video_name = filename.replace(".mp4", "")
+                        current_row_data = avg_df.loc[avg_df['VideoName'] == current_video_name]
+                        if len(current_row_data) <= 0:
+                            print(f"Video failed to be processed by OpenFace. Videoname={current_video_name}. Skipping...")
+                            continue
+
+                        # GET VISUAL DATA:
+                        current_data = current_row_data[AVG_OPENFACE_FEATURE_COLUMNS_SELECTION].iloc[0].values
+
+                        # GET AUDIO DATA:
+                        current_audio_data = get_audio_sample(data_dir=audio_data_dir,
+                                                              filename=filename,
+                                                              feature_type=audio_feature_type,
+                                                              seconds_limit=input_length_in_seconds)
+                        # GET FUSED DATA:
+                        fused_data = get_fused_features(visual_feature=current_data,
+                                                        audio_feature=current_audio_data,
+                                                        visual_data_mode=visual_data_mode,
+                                                        fusion_mode=fusion_mode)
+
+                        if fused_data:
+                            # append to X and y data:
+                            # no need to trim sequences, since we deal with video averaged impressions
+                            X_data.append(fused_data)
+                            y_data.append(current_label_num)
+                            # keep track of how many things we gathered:
+                            counter+=1                
+                            if verbose:
+                                if (counter%100==0):
+                                    print(f"Processed {counter} / {total}")
+                                    print("  - Sample shape & label:")
+                                    print(f"    - X_data: {fused_data.shape}")
+                                    print(f"    - y_data: {current_label_num}")
+                    except:  # if we get error in other loops (Sequential OpenFace or MediaPipe), then add this error exception there too)
+                        print("##########################################################################")
+                        print(">>> ERROR:")
+                        print(f"Failed with retrieving data for videoname={current_video_name}. Please check the error below...")
+                        print(traceback.format_exc())
+                        print("##########################################################################\n")
+            # if it is sequential, we need to read from list of .csv files, each representing individual video.
+            elif visual_approach_type == "sequential":  # "sequential":
+                for filename in meta_df["video_name"]:
+                    try:
+                        # setup label name and num:
+                        current_label_name = filename.split("_")[1]
+                        current_label_num  = class_to_num_dict[current_label_name]
+                        # get path to data:
+                        path = os.path.join(data_dir, f"{filename.replace('.mp4', '')}.csv")
+                        # if we have such path, then we read it, get features of interest,
+                        # and reshape into (frame, features*xyz)
+                        # print("path:", path)
+                        # print("os.path.exists(path):", os.path.exists(path))
+                        if(os.path.exists(path)):
+                            arr = pd.read_csv(path)
+                            current_data = arr[SEQUENTIAL_OPENFACE_FEATURE_COLUMNS_SELECTION].values
+
+                            # GET VISUAL DATA:
+                            # standardize data to same FPS:
+                            current_data_processed = CautDataloaderRegular.standardize_FPS(data=current_data,
+                                                                                           frame_cap=frame_cap)
+
+                            # GET AUDIO DATA:
+                            current_audio_data = get_audio_sample(data_dir=audio_data_dir,
+                                                                  filename=filename,
+                                                                  feature_type=audio_feature_type,
+                                                                  seconds_limit=input_length_in_seconds)
+
+                            # GET FUSED DATA:
+                            fused_data = get_fused_features(visual_feature=current_data_processed,
+                                                            audio_feature=current_audio_data,
+                                                            visual_data_mode=visual_data_mode,
+                                                            fusion_mode=fusion_mode)
+
+                            if fused_data:
+                                # record data:
+                                X_data.append(fused_data)
+                                y_data.append(current_label_num)
+                                # keep track of how much we have processed...
+                                counter+=1
+                                if verbose:
+                                    if (counter%100==0):
+                                        print(f"Processed {counter} / {total}")
+                                        print("  - Sample shape & label:")
+                                        print(f"    - X_data: {fused_data.shape}")
+                                        print(f"    - y_data: {current_label_num}")
+                    except:
+                        print("##########################################################################")
+                        print(">>> ERROR:")
+                        print(f"Failed with retrieving data for videoname={filename}. Please check the error below...")
+                        print(traceback.format_exc())
+                        print("##########################################################################\n")
+
+            else:
+                print(f">>> ERROR: No such supported visual_approach_type = {visual_approach_type}")
+
+        elif visual_data_mode == "mediapipe":  # otherwise, take care of MediaPipe
+            # do MediaPipe + Audio fusion here
+            for filename in meta_df["video_name"]:
+                try:
+                    # setup label name and num:
+                    current_label_name = filename.split("_")[1]
+                    current_label_num  = class_to_num_dict[current_label_name]
+                    # get path to data:
+                    path = os.path.join(data_dir, f"{filename.replace('.mp4', '')}_MP_coord.npy")
+                    # if we have such path, then we read it, get features of interest,
+                    # and reshape into (frame, features*xyz)
+                    if(os.path.exists(path)):
+                        arr = np.load(path)
+                        trun_arr = arr[:,SEQUENTIAL_MEDIAPIPE_FEATURE_COLUMNS_SELECTION,:]
+                        dim_1, dim_2, dim_3 = trun_arr.shape[0], trun_arr.shape[1], trun_arr.shape[2]
+                        current_data = trun_arr.reshape((dim_1, dim_2*dim_3))
+
+                        # GET VISUAL DATA:
+                        # standardize data to same FPS:
+                        current_data_processed = CautDataloaderRegular.standardize_FPS(data=current_data,
+                                                                                       frame_cap=frame_cap)
+
+                        # GET AUDIO DATA:
+                        current_audio_data = get_audio_sample(data_dir=audio_data_dir,
+                                                              filename=filename,
+                                                              feature_type=audio_feature_type,
+                                                              seconds_limit=input_length_in_seconds)
+
+                        # GET FUSED DATA:
+                        fused_data = get_fused_features(visual_feature=current_data_processed,
+                                                        audio_feature=current_audio_data,
+                                                        visual_data_mode=visual_data_mode,
+                                                        fusion_mode=fusion_mode)
+
+                        if fused_data:
+                            # record data:
+                            X_data.append(fused_data)
+                            y_data.append(current_label_num)
+                            # keep track of how much we have processed...
+                            counter+=1
+                            if verbose:
+                                if (counter%100==0):
+                                    print(f"Processed {counter} / {total}")
+                                    print("  - Sample shape & label:")
+                                    print(f"    - X_data: {fused_data.shape}")
+                                    print(f"    - y_data: {current_label_num}")
+
+                except:
+                        print("##########################################################################")
+                        print(">>> ERROR:")
+                        print(f"Failed with retrieving data for videoname={filename}. Please check the error below...")
+                        print(traceback.format_exc())
+                        print("##########################################################################\n")
+
+        else:
+            print(f">>> ERROR: No such supported data_mode = {data_mode}")
+
+        # return results:
+        X_data = np.array(X_data)
+        y_data = np.array(y_data)
+
+        return X_data, y_data
+    #########################################################################################################################
+    ########################################## END OF FUSION FUNCTIONS ######################################################
+    #########################################################################################################################
+    
+    
+    
     @staticmethod
     def get_positive_negative_rates(confusion_matrix):
         #calculate false positive, false negative, true positive and true nagative

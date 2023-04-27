@@ -6,6 +6,8 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix
 import traceback
+# UMAP Approach:
+from umap import UMAP
 
 AVG_OPENFACE_FEATURE_COLUMNS_SELECTION = ["mean_AU01","mean_AU02","mean_AU04","mean_AU05","mean_AU06","mean_AU07","mean_AU09","mean_AU10","mean_AU11","mean_AU12","mean_AU14","mean_AU15","mean_AU17","mean_AU20","mean_AU23","mean_AU24","mean_AU25","mean_AU26","mean_AU28","mean_AU43","mean_anger","mean_disgust","mean_fear","mean_happiness","mean_sadness","mean_surprise","mean_neutral"]
 
@@ -390,6 +392,7 @@ class CautDataloaderRegular:
                                 visual_data_mode,
                                 audio_data_dir,
                                 # coord_selection,
+                                fusion_mode,
                                 visual_approach_type=None,  # average or frame-based
                                 required_FPS = 30,
                                 input_length_in_seconds = 3,
@@ -398,7 +401,7 @@ class CautDataloaderRegular:
                                 verbose = True):
 
         # visual_data_dir => for visual data path.
-        audio_data_dir = os.path.join(audio_data_dir, f"{feature_type}_audio_features")  # for audio data path.
+        audio_data_dir = os.path.join(audio_data_dir, f"{audio_feature_type}_audio_features")  # for audio data path.
         print(f"audio_data_dir updated to: {audio_data_dir}")
         
         # meta data:
@@ -409,17 +412,29 @@ class CautDataloaderRegular:
         # Audio MODE: #
         ##################
         # train:
-        X_train, y_train = CautDataloaderRegular.get_Xy_data_fusedFeatures(data_dir=data_dir,
-                                                                           meta_df=train_df_meta,
+        X_train, y_train = CautDataloaderRegular.get_Xy_data_fusedFeatures(meta_df=train_df_meta,
+                                                                           visual_data_dir=visual_data_dir,
+                                                                           visual_data_mode=visual_data_mode,
+                                                                           audio_data_dir=audio_data_dir,
+                                                                           # coord_selection,
+                                                                           fusion_mode=fusion_mode,  # or "+"
+                                                                           visual_approach_type=visual_approach_type,  # average or frame-based
+                                                                           required_FPS=required_FPS,
                                                                            input_length_in_seconds=input_length_in_seconds,
-                                                                           feature_type=feature_type,
+                                                                           audio_feature_type=audio_feature_type,  # MFCC, RMS, Chroma
                                                                            class_to_num_dict=class_to_num_dict,
                                                                            verbose=verbose)
         # test:
-        X_test, y_test = CautDataloaderRegular.get_Xy_data_fusedFeatures(data_dir=data_dir,
-                                                                         meta_df=test_df_meta,
+        X_test, y_test = CautDataloaderRegular.get_Xy_data_fusedFeatures(meta_df=test_df_meta,
+                                                                         visual_data_dir=visual_data_dir,
+                                                                         visual_data_mode=visual_data_mode,
+                                                                         audio_data_dir=audio_data_dir,
+                                                                         # coord_selection,
+                                                                         fusion_mode=fusion_mode,  # or "+"
+                                                                         visual_approach_type=visual_approach_type,  # average or frame-based
+                                                                         required_FPS=required_FPS,
                                                                          input_length_in_seconds=input_length_in_seconds,
-                                                                         feature_type=feature_type,
+                                                                         audio_feature_type=audio_feature_type,  # MFCC, RMS, Chroma
                                                                          class_to_num_dict=class_to_num_dict,
                                                                          verbose=verbose)
         # check on results:
@@ -447,38 +462,59 @@ class CautDataloaderRegular:
 
 
     @staticmethod
-    def get_fused_features(visual_feature, audio_feature, visual_data_mode, fusion_mode):
-        result = None
-        if visual_data_mode == "average":
+    def get_fused_features(visual_feature, audio_feature, visual_approach_type, fusion_mode, frame_cap):
+        
+        print("Attempting to fuse:")
+        print(f"  - visual feature: {visual_feature.shape}")
+        print(f"  - audio feature: {audio_feature.shape}")
+        
+        visual_feature_dim = visual_feature.shape[1]
+        audio_feature_dim = audio_feature.shape[1]
+        
+        # trim to visual feature shape:
+        audio_feature = audio_feature[:frame_cap]  # think of a better way in the meantime.
+        
+        fused_feature = None
+        if visual_approach_type == "average":
             if fusion_mode == "x":
                 pass
             else:  # fusion_mode = "+"
                 pass
-        elif visual_data_mode == "sequential":  # means that visual_data_mode == "sequential":
+        elif visual_approach_type == "sequential":  # means that visual_data_mode == "sequential":
             if fusion_mode == "x":
-                pass
+                if visual_feature_dim > audio_feature_dim:
+                    umap_3d = UMAP(n_components=audio_feature_dim, init='random', random_state=0)
+                    visual_feature = umap_3d.fit_transform(visual_feature)
+                else:
+                    umap_3d = UMAP(n_components=visual_feature_dim, init='random', random_state=0)
+                    audio_feature = umap_3d.fit_transform(audio_feature)
+                fused_feature = np.multiply(visual_feature, audio_feature)
             else:  # fusion_mode = "+"
                 pass
         else:
-            print(f">>> ERROR: No such supported visual_data_mode = {visual_data_mode}")
-        return result
+            print(f">>> ERROR: No such supported visual_data_mode = {visual_approach_type}")
+            
+        # if not (fused_feature is None):
+        #     print(f"\n>>> Fused feature result shape: {fused_feature.shape}")
+            
+        return fused_feature
 
 
 
 
     @staticmethod
-    def get_Xy_data_Fused(meta_df,
-                          visual_data_dir,
-                          visual_data_mode,
-                          audio_data_dir,
-                          # coord_selection,
-                          fusion_mode="x",  # or "+"
-                          visual_approach_type=None,  # average or frame-based
-                          required_FPS = 30,
-                          input_length_in_seconds = 3,
-                          audio_feature_type="MFCC",  # MFCC, RMS, Chroma
-                          class_to_num_dict = {"truth": 0, "lie": 1},
-                          verbose = True):
+    def get_Xy_data_fusedFeatures(meta_df,
+                                  visual_data_dir,
+                                  visual_data_mode,
+                                  audio_data_dir,
+                                  # coord_selection,
+                                  fusion_mode,  # or "+"
+                                  visual_approach_type,  # average or frame-based
+                                  required_FPS,
+                                  input_length_in_seconds,
+                                  audio_feature_type,  # MFCC, RMS, Chroma
+                                  class_to_num_dict,
+                                  verbose):
 
         X_data = []
         y_data = []
@@ -512,17 +548,18 @@ class CautDataloaderRegular:
                         current_data = current_row_data[AVG_OPENFACE_FEATURE_COLUMNS_SELECTION].iloc[0].values
 
                         # GET AUDIO DATA:
-                        current_audio_data = get_audio_sample(data_dir=audio_data_dir,
-                                                              filename=filename,
-                                                              feature_type=audio_feature_type,
-                                                              seconds_limit=input_length_in_seconds)
+                        current_audio_data = CautDataloaderRegular.get_audio_sample(data_dir=audio_data_dir,
+                                                                                    filename=filename,
+                                                                                    feature_type=audio_feature_type,
+                                                                                    seconds_limit=input_length_in_seconds)
                         # GET FUSED DATA:
-                        fused_data = get_fused_features(visual_feature=current_data,
-                                                        audio_feature=current_audio_data,
-                                                        visual_data_mode=visual_data_mode,
-                                                        fusion_mode=fusion_mode)
+                        fused_data = CautDataloaderRegular.get_fused_features(visual_feature=current_data,
+                                                                              audio_feature=current_audio_data,
+                                                                              visual_approach_type=visual_approach_type,
+                                                                              fusion_mode=fusion_mode,
+                                                                              frame_cap=1)
 
-                        if fused_data:
+                        if not (fused_data is None):
                             # append to X and y data:
                             # no need to trim sequences, since we deal with video averaged impressions
                             X_data.append(fused_data)
@@ -564,18 +601,19 @@ class CautDataloaderRegular:
                                                                                            frame_cap=frame_cap)
 
                             # GET AUDIO DATA:
-                            current_audio_data = get_audio_sample(data_dir=audio_data_dir,
-                                                                  filename=filename,
-                                                                  feature_type=audio_feature_type,
-                                                                  seconds_limit=input_length_in_seconds)
+                            current_audio_data = CautDataloaderRegular.get_audio_sample(data_dir=audio_data_dir,
+                                                                                        filename=filename,
+                                                                                        feature_type=audio_feature_type,
+                                                                                        seconds_limit=input_length_in_seconds)
 
                             # GET FUSED DATA:
-                            fused_data = get_fused_features(visual_feature=current_data_processed,
-                                                            audio_feature=current_audio_data,
-                                                            visual_data_mode=visual_data_mode,
-                                                            fusion_mode=fusion_mode)
+                            fused_data = CautDataloaderRegular.get_fused_features(visual_feature=current_data_processed,
+                                                                                  audio_feature=current_audio_data,
+                                                                                  visual_approach_type=visual_approach_type,
+                                                                                  fusion_mode=fusion_mode,
+                                                                                  frame_cap=frame_cap)
 
-                            if fused_data:
+                            if not (fused_data is None):
                                 # record data:
                                 X_data.append(fused_data)
                                 y_data.append(current_label_num)
@@ -605,7 +643,7 @@ class CautDataloaderRegular:
                     current_label_name = filename.split("_")[1]
                     current_label_num  = class_to_num_dict[current_label_name]
                     # get path to data:
-                    path = os.path.join(data_dir, f"{filename.replace('.mp4', '')}_MP_coord.npy")
+                    path = os.path.join(visual_data_dir, f"{filename.replace('.mp4', '')}_MP_coord.npy")
                     # if we have such path, then we read it, get features of interest,
                     # and reshape into (frame, features*xyz)
                     if(os.path.exists(path)):
@@ -620,18 +658,19 @@ class CautDataloaderRegular:
                                                                                        frame_cap=frame_cap)
 
                         # GET AUDIO DATA:
-                        current_audio_data = get_audio_sample(data_dir=audio_data_dir,
-                                                              filename=filename,
-                                                              feature_type=audio_feature_type,
-                                                              seconds_limit=input_length_in_seconds)
+                        current_audio_data = CautDataloaderRegular.get_audio_sample(data_dir=audio_data_dir,
+                                                                                    filename=filename,
+                                                                                    feature_type=audio_feature_type,
+                                                                                    seconds_limit=input_length_in_seconds)
 
                         # GET FUSED DATA:
-                        fused_data = get_fused_features(visual_feature=current_data_processed,
-                                                        audio_feature=current_audio_data,
-                                                        visual_data_mode=visual_data_mode,
-                                                        fusion_mode=fusion_mode)
+                        fused_data = CautDataloaderRegular.get_fused_features(visual_feature=current_data_processed,
+                                                                              audio_feature=current_audio_data,
+                                                                              visual_approach_type=visual_approach_type,
+                                                                              fusion_mode=fusion_mode,
+                                                                              frame_cap=frame_cap)
 
-                        if fused_data:
+                        if not (fused_data is None):
                             # record data:
                             X_data.append(fused_data)
                             y_data.append(current_label_num)

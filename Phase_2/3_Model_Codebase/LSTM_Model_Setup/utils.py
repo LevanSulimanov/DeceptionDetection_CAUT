@@ -478,8 +478,9 @@ class CautDataloaderRegular:
         if visual_approach_type == "average":
             if fusion_mode == "x":
                 pass
-            else:  # fusion_mode = "+"
-                pass
+            else: fusion_mode = "+"
+                
+            
         elif visual_approach_type == "sequential":  # means that visual_data_mode == "sequential":
             if fusion_mode == "x":
                 if visual_feature_dim > audio_feature_dim:
@@ -490,6 +491,31 @@ class CautDataloaderRegular:
                     audio_feature = umap_3d.fit_transform(audio_feature)
                 fused_feature = np.multiply(visual_feature, audio_feature)
             else:  # fusion_mode = "+"
+                def concatenate_csv(audio_dir, video_dir, output_dir):
+    # Loop over audio files and concatenate with corresponding video file
+    for audio_file in os.listdir(audio_dir):
+        # Check if file is a CSV file
+        if audio_file.endswith('.csv'):
+            # Construct path to audio file
+            audio_path = os.path.join(audio_dir, audio_file)
+            # Construct path to video file with the same name as the audio file
+            video_file = os.path.join(video_dir, audio_file)
+            # Check if the video file exists
+            if os.path.exists(video_file):
+                # Read audio and video CSV files into pandas dataframes
+                audio_df = pd.read_csv(audio_path)
+                video_df = pd.read_csv(video_file)
+                # Concatenate the two dataframes over axis 1
+                concatenated_df = np.concatenate([audio_df, video_df], axis=1)
+                # Create output directory if it doesn't exist
+                os.makedirs(output_dir, exist_ok=True)
+                # Write concatenated dataframe to CSV file
+                output_path = os.path.join(output_dir, audio_file)
+                print(output_path)
+                pd.DataFrame(concatenated_df).to_csv(output_path, index=False)
+            else:
+                print(f"No video file found for {audio_file}")
+                pass
                 pass
         else:
             print(f">>> ERROR: No such supported visual_data_mode = {visual_approach_type}")

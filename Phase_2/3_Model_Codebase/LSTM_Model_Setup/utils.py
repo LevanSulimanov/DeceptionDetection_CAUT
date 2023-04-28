@@ -478,7 +478,8 @@ class CautDataloaderRegular:
         if visual_approach_type == "average":
             if fusion_mode == "x":
                 pass
-            else:  # fusion_mode = "+"
+            else:  #fusion_mode = "+"
+                fused_feature = np.concatenate((visual_feature, audio_feature), axis = 1)
                 pass
         elif visual_approach_type == "sequential":  # means that visual_data_mode == "sequential":
             if fusion_mode == "x":
@@ -490,7 +491,9 @@ class CautDataloaderRegular:
                     audio_feature = umap_3d.fit_transform(audio_feature)
                 fused_feature = np.multiply(visual_feature, audio_feature)
             else:  # fusion_mode = "+"
-                pass
+                fused_feature = np.concatenate((visual_feature, audio_feature), axis = 1)
+
+                 pass
         else:
             print(f">>> ERROR: No such supported visual_data_mode = {visual_approach_type}")
             

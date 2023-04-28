@@ -479,8 +479,7 @@ class CautDataloaderRegular:
             if fusion_mode == "x":
                 pass
             else:  #fusion_mode = "+"
-                fused_feature = np.concatenate((visual_feature, audio_feature), axis = 1)
-                pass
+                fused_feature = np.concatenate((visual_feature, audio_feature), axis = 1) 
         elif visual_approach_type == "sequential":  # means that visual_data_mode == "sequential":
             if fusion_mode == "x":
                 if visual_feature_dim > audio_feature_dim:
@@ -492,8 +491,6 @@ class CautDataloaderRegular:
                 fused_feature = np.multiply(visual_feature, audio_feature)
             else:  # fusion_mode = "+"
                 fused_feature = np.concatenate((visual_feature, audio_feature), axis = 1)
-
-                 pass
         else:
             print(f">>> ERROR: No such supported visual_data_mode = {visual_approach_type}")
             

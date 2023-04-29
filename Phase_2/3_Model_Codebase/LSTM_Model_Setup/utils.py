@@ -464,9 +464,9 @@ class CautDataloaderRegular:
     @staticmethod
     def get_fused_features(visual_feature, audio_feature, visual_approach_type, fusion_mode, frame_cap):
         
-        print("Attempting to fuse:")
-        print(f"  - visual feature: {visual_feature.shape}")
-        print(f"  - audio feature: {audio_feature.shape}")
+        # print("Attempting to fuse:")
+        # print(f"  - visual feature: {visual_feature.shape}")
+        # print(f"  - audio feature: {audio_feature.shape}")
         
         visual_feature_dim = visual_feature.shape[1]
         audio_feature_dim = audio_feature.shape[1]
@@ -477,9 +477,9 @@ class CautDataloaderRegular:
         fused_feature = None
         if visual_approach_type == "average":
             if fusion_mode == "x":
-                pass
+                fused_feature = np.multiply(visual_feature, audio_feature)
             else:  # fusion_mode = "+"
-                pass
+                fused_feature = np.concatenate((visual_feature, audio_feature), axis=1)
         elif visual_approach_type == "sequential":  # means that visual_data_mode == "sequential":
             if fusion_mode == "x":
                 if visual_feature_dim > audio_feature_dim:
@@ -490,7 +490,7 @@ class CautDataloaderRegular:
                     audio_feature = umap_3d.fit_transform(audio_feature)
                 fused_feature = np.multiply(visual_feature, audio_feature)
             else:  # fusion_mode = "+"
-                pass
+                fused_feature = np.concatenate((visual_feature, audio_feature), axis=1)
         else:
             print(f">>> ERROR: No such supported visual_data_mode = {visual_approach_type}")
             
@@ -586,7 +586,7 @@ class CautDataloaderRegular:
                         current_label_name = filename.split("_")[1]
                         current_label_num  = class_to_num_dict[current_label_name]
                         # get path to data:
-                        path = os.path.join(data_dir, f"{filename.replace('.mp4', '')}.csv")
+                        path = os.path.join(visual_data_dir, f"{filename.replace('.mp4', '')}.csv")
                         # if we have such path, then we read it, get features of interest,
                         # and reshape into (frame, features*xyz)
                         # print("path:", path)

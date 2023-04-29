@@ -468,8 +468,15 @@ class CautDataloaderRegular:
         # print(f"  - visual feature: {visual_feature.shape}")
         # print(f"  - audio feature: {audio_feature.shape}")
         
-        visual_feature_dim = visual_feature.shape[1]
-        audio_feature_dim = audio_feature.shape[1]
+        if len(visual_feature.shape) > 1:
+        	visual_feature_dim = visual_feature.shape[1]
+        else:
+        	visual_feature_dim = 1
+
+        if len(audio_feature.shape) > 1:
+        	audio_feature_dim = audio_feature.shape[1]
+        else:
+        	audio_feature_dim = 1
         
         # trim to visual feature shape:
         audio_feature = audio_feature[:frame_cap]  # think of a better way in the meantime.

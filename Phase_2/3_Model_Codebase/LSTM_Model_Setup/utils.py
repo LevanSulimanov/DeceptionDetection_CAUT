@@ -586,7 +586,7 @@ class CautDataloaderRegular:
                         current_label_name = filename.split("_")[1]
                         current_label_num  = class_to_num_dict[current_label_name]
                         # get path to data:
-                        path = os.path.join(data_dir, f"{filename.replace('.mp4', '')}.csv")
+                        path = os.path.join(visual_data_dir, f"{filename.replace('.mp4', '')}.csv")
                         # if we have such path, then we read it, get features of interest,
                         # and reshape into (frame, features*xyz)
                         # print("path:", path)

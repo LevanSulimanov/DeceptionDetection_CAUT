@@ -486,7 +486,7 @@ class CautDataloaderRegular:
             if fusion_mode == "x":
                 fused_feature = np.multiply(visual_feature, audio_feature)
             else:  # the fusion_mode will be "+"
-                fused_feature = np.concatenate((visual_feature, audio_feature), axis = 1) 
+                fused_feature = np.concatenate(visual_feature, audio_feature) 
         elif visual_approach_type == "sequential":  # means that visual_data_mode == "sequential":
             if fusion_mode == "x":
                 if visual_feature_dim > audio_feature_dim:
